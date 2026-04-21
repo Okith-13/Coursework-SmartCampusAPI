@@ -259,3 +259,48 @@ The GitHub repository includes:
 - an overview of the API
 - build and run instructions
 - sample curl commands for testing the endpoints
+---
+
+## 13. Coursework Question Answers
+
+### Part 1 – Service Architecture & Setup
+
+#### 1. Resource Lifecycle
+By default, JAX-RS resource classes are usually request scoped, which means a new resource instance is created for each incoming HTTP request. This is useful because it avoids unwanted sharing of instance fields between requests. However, in this coursework, the data must remain available across different requests, so storing data inside normal resource object fields would be unsafe because that data could be lost when a new resource instance is created. For this reason, I used a shared in memory store class to hold the application data. To reduce concurrency risks when multiple clients access the API at the same time, I used thread-safe structures such as `ConcurrentHashMap` for the main collections. This approach helps preserve data between requests while lowering the chance of race conditions.
+
+#### 2. Hypermedia / HATEOAS
+Hypermedia is considered an advanced RESTful design principle because it allows the server to guide clients through the available resources using links inside the response itself. Instead of relying only on external documentation, the client can discover what endpoints exist and how to move through the API by following those links. This makes the API more self descriptive and easier to explore. It benefits client developers because the server can expose the current structure of the API directly, which reduces guesswork and makes the system easier to use, especially when APIs evolve over time. In my coursework, the discovery endpoint provides version information, contact details and links to the main resource collections, which is a simple form of hypermedia support.
+
+### Part 2 – Room Management
+
+#### 3. Returning IDs vs Full Room Objects
+Returning only room IDs reduces the response size, so it saves bandwidth and can be more efficient if the client only needs identifiers. However, it also means the client may need to make additional requests to fetch more details about each room. Returning the full room objects increases the size of the response, but it is more convenient because the client immediately receives useful information such as room name, capacity and sensor IDs. This can reduce the number of follow up requests and simplify client side logic. In my API, I returned full room objects because it provides a more practical response for management tasks and makes the system easier to test and demonstrate.
+
+#### 4. Is DELETE idempotent?
+DELETE is intended to be idempotent because repeating the same request should leave the server in the same final state. In my implementation, if a room exists and has no assigned sensors, the first DELETE request removes it successfully. If the same DELETE request is sent again, the room no longer exists, so the server returns a not found error. Even though the second response is different, the resource state is unchanged after the first successful deletion, which still fits the idea of idempotency. If the room contains sensors, every DELETE attempt will fail with the same conflict response until the sensors are removed, so the state also remains unchanged in that case.
+
+### Part 3 – Sensor Operations & Linking
+
+#### 5. Effect of `@Consumes(MediaType.APPLICATION_JSON)`
+The `@Consumes(MediaType.APPLICATION_JSON)` annotation tells JAX-RS that the endpoint only accepts request bodies in JSON format. If a client sends data with a different content type, such as `text/plain` or `application/xml`, JAX-RS will not match the request to that method correctly because the media type is unsupported. In practice, this usually results in an HTTP `415 Unsupported Media Type` response. This behaviour is useful because it enforces a clear contract between the client and server, ensuring that the request body is sent in the format the API expects and can safely parse.
+
+#### 6. Why use `@QueryParam` for filtering?
+Using `@QueryParam` is generally better for filtering because it expresses that the client is searching within a collection rather than requesting a completely separate resource. The resource is still the sensors collection, but the query parameter narrows the results. For example, `/api/v1/sensors?type=CO2` clearly means “give me sensors, filtered by type.” This is more flexible because additional filters can easily be added later, such as status or roomId, without changing the resource structure. A path such as `/api/v1/sensors/type/CO2` is less flexible and can make filtering look like a completely different nested resource instead of a filtered view of the same collection.
+
+### Part 4 – Deep Nesting with Sub-Resources
+
+#### 7. Benefits of the Sub-Resource Locator Pattern
+The Sub-Resource Locator pattern improves organisation by delegating nested resource logic to a dedicated class. Instead of placing all endpoints for sensors and readings inside one large resource class, the sensor resource can pass control to a separate sensor reading resource when the path reaches `/{sensorId}/readings`. This makes the code easier to read, test and maintain. Each class has a clearer responsibility, which reduces complexity and avoids creating one very large controller with too many unrelated methods. In larger APIs, this separation is especially valuable because it keeps nested resource behaviour modular and easier to extend.
+
+### Part 5 – Advanced Error Handling, Exception Mapping & Logging
+
+#### 8. Why `422 Unprocessable Entity` is more accurate than `404`
+HTTP `422 Unprocessable Entity` is more accurate here because the request itself is syntactically correct and the endpoint exists, but the data inside the request cannot be processed due to a semantic problem. In this coursework, a client may send valid JSON to create a sensor, but the `roomId` inside that JSON may refer to a room that does not exist. That is not really the same as a normal `404 Not Found`, because the missing element is not the endpoint itself. Instead, the problem is that the submitted representation contains an invalid reference. For this reason, `422` communicates the issue more precisely.
+
+#### 9. Cybersecurity risks of exposing stack traces
+Exposing raw Java stack traces is dangerous because it reveals internal details about how the application is built. An attacker could learn class names, package names, framework details, file paths, library versions, method names and even hints about the server configuration. This information can help an attacker understand the internal structure of the system and identify weak points or known vulnerabilities in specific libraries. It also makes reconnaissance easier, which increases the chance of targeted attacks. For this reason, my API uses custom exception mappers to return clean JSON error messages instead of raw stack traces.
+
+#### 10. Why use JAX-RS filters for logging?
+JAX-RS filters are better for cross cutting concerns such as logging because they centralize the behavior in one place instead of repeating the same logging code inside every resource method. This reduces duplication, makes the resource classes cleaner and ensures that logging is applied consistently to all requests and responses. It also improves maintainability because any future changes to logging behavior can be made in a single filter class rather than across many endpoints. In my project, the logging filter records the request method and URI for incoming requests and the final status code for outgoing responses.
+
+---
