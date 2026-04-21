@@ -21,7 +21,7 @@ The API allows campus facilities managers or automated systems to manage:
 - Sensors assigned to rooms
 - Historical sensor readings
 
-The application uses in-memory data structures only and does not use any database, in line with the coursework requirements. :contentReference[oaicite:1]{index=1}
+The application uses in-memory data structures only and does not use any database, in line with the coursework requirements.
 
 ---
 
@@ -95,3 +95,17 @@ src/main/java/com/mycompany/smartcampusapi
 │   └── GlobalExceptionMapper.java
 └── filter
     └── LoggingFilter.java
+---
+```
+## 5. How to Build and Run the Project
+
+### In NetBeans
+1. Open the Maven project in NetBeans.
+2. Wait for Maven dependencies to load.
+3. Right-click the project and choose **Clean and Build**.
+4. Right-click the project and choose **Run**.
+5. The server should start on:
+
+```text
+http://localhost:8080/api/v1/
+```
